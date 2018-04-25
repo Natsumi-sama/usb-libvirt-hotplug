@@ -62,14 +62,23 @@ if [ -z "${ACTION}" ]; then
   echo "Missing udev ACTION environment variable." >&2
   exit 1
 fi
-if [ "${ACTION}" == 'add' ]; then
+if [ "${ACTION}" == 'bind' ]; then
   COMMAND='attach-device'
-elif [ "${ACTION}" == 'remove' ]; then
+  echo "${ACTION}" >&2
+elif [ "${ACTION}" == 'unbind' ]; then
   COMMAND='detach-device'
+  echo "${ACTION}" >&2
+elif [ "${ACTION}" == 'add' ]; then
+  echo "${ACTION}" >&2
+  exit 1
+elif [ "${ACTION}" == 'remove' ]; then
+  echo "${ACTION}" >&2
+  exit 1
 else
   echo "Invalid udev ACTION: ${ACTION}" >&2
   exit 1
 fi
+
 
 if [ -z "${BUSNUM}" ]; then
   echo "Missing udev BUSNUM environment variable." >&2
@@ -99,10 +108,38 @@ DEVNUM=$((10#$DEVNUM))
 # update XML from stdin.
 #
 echo "Running virsh ${COMMAND} ${DOMAIN} for USB bus=${BUSNUM} device=${DEVNUM}:" >&2
-virsh "${COMMAND}" "${DOMAIN}" /dev/stdin <<END
+
+if [ "${COMMAND}" = "attach-device" ]; then
+virsh "attach-device" "${DOMAIN}" /dev/stdin <<END
 <hostdev mode='subsystem' type='usb'>
   <source>
-    <address bus='${BUSNUM}' device='${DEVNUM}' />
+    <address bus='${BUSNUM}' device='${DEVNUM}'/>
   </source>
 </hostdev>
 END
+
+virsh "detach-device" "${DOMAIN}" /dev/stdin <<END
+<hostdev mode='subsystem' type='usb'>
+  <source>
+    <address bus='${BUSNUM}' device='${DEVNUM}'/>
+  </source>
+</hostdev>
+END
+
+virsh "attach-device" "${DOMAIN}" /dev/stdin <<END
+<hostdev mode='subsystem' type='usb'>
+  <source>
+    <address bus='${BUSNUM}' device='${DEVNUM}'/>
+  </source>
+</hostdev>
+END
+
+else
+virsh "detach-device" "${DOMAIN}" /dev/stdin <<END
+<hostdev mode='subsystem' type='usb'>
+  <source>
+    <address bus='${BUSNUM}' device='${DEVNUM}'/>
+  </source>
+</hostdev>
+END
+fi
